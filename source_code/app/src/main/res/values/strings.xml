@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Garda Kiosk</string>
+    <string name="device_admin_label">Garda Admin</string>
+    <string name="device_admin_description">Aplikasi Admin Pengunci Garda Kiosk</string>
+</resources>

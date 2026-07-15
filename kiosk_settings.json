@@ -1,0 +1,39 @@
+{
+  "allowed_packages": [
+    "com.mendhak.gpstanaman",
+    "com.mendhak.gpsunit",
+    "com.eclipsim.gpsstatus2",
+    "org.localsend.localsend_app",
+    "com.sec.android.app.myfiles",
+    "com.android.bluetooth",
+    "com.samsung.android.app.sharelive",
+    "com.samsung.android.app.devicesandsharing",
+    "com.android.intentresolver"
+  ],
+  "allowed_packages_description": {
+    "com.mendhak.gpstanaman": "GPS Tanaman (Aplikasi Utama Pelacak Lapangan)",
+    "com.mendhak.gpsunit": "GPS Unit (Aplikasi Alternatif Pelacak Lapangan)",
+    "com.eclipsim.gpsstatus2": "GPS Status (Alat cek status satelit & kalibrasi kompas)",
+    "org.localsend.localsend_app": "LocalSend (Berbagi berkas offline via Wi-Fi lokal)",
+    "com.sec.android.app.myfiles": "File Manager Bawaan Samsung (Akses berkas memori internal)",
+    "com.android.bluetooth": "Layanan Berbagi Berkas via Bluetooth",
+    "com.samsung.android.app.sharelive": "Layanan Utama Samsung QuickShare",
+    "com.samsung.android.app.devicesandsharing": "Samsung QuickShare (Panel perangkat & berbagi)",
+    "com.android.intentresolver": "Sistem Pilihan Berbagi Android (Share Sheet)"
+  },
+  "background_packages": [
+    "com.mendhak.gpstanaman",
+    "com.mendhak.gpsunit"
+  ],
+  "hidden_icons": [
+    "com.android.bluetooth",
+    "com.samsung.android.app.sharelive",
+    "com.samsung.android.app.devicesandsharing",
+    "com.android.intentresolver"
+  ],
+  "lock_mode": "SWIPE",
+  "idle_timeout": 30,
+  "is_kiosk_active": true,
+  "footer_text": "PROPERTI PERUSAHAAN - GPS TRACKING AKTIF",
+  "usb_debugging_blocked": true
+}

@@ -1,0 +1,44 @@
+# ============================================
+# Android / Gradle
+# ============================================
+.gradle/
+build/
+*/build/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ============================================
+# Logs & Temp
+# ============================================
+*.log
+*.tmp
+*.cache
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ============================================
+# CommandCode (system)
+# ============================================
+.commandcode/
+
+# ============================================
+# Secrets / Local
+# ============================================
+*.keystore
+*.jks
+google-services.json
+secrets.properties
