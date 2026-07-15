@@ -224,7 +224,7 @@ ___
 | Developer | kwadev69 |
 | AI Assistants | Deepseek, Antygravity, ChatGPT, Claude Code, Open Code, GLM |
 
-**Lisensi**: Private / Internal Perusahaan
+**Lisensi**: OpenSource / MIT
 
 ___
 
