@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import kotlinx.coroutines.launch
 import com.example.kioskdeviceowner.KioskSettingsManager
 
 class AdbControlReceiver : BroadcastReceiver() {
@@ -88,6 +89,12 @@ class AdbControlReceiver : BroadcastReceiver() {
                 if (seconds >= 0) {
                     settings.idleTimeoutSeconds = seconds
                     showToast(context, "Idle timeout set to $seconds seconds")
+                }
+            }
+            "com.kiosk.action.CHECK_OTA" -> {
+                showToast(context, "Memeriksa Pembaharuan OTA...")
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    com.example.kioskdeviceowner.OtaUpdateManager(context).checkAndPerformAutoUpdate(forceCheck = true)
                 }
             }
             "com.kiosk.action.EXIT_KIOSK" -> {

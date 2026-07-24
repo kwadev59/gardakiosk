@@ -70,6 +70,7 @@
                 <action android:name="com.kiosk.action.EXIT_KIOSK" />
                 <action android:name="com.kiosk.action.OPEN_SETTINGS" />
                 <action android:name="com.kiosk.action.CLEAR_DEVICE_OWNER" />
+                <action android:name="com.kiosk.action.CHECK_OTA" />
             </intent-filter>
         </receiver>
 
