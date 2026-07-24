@@ -5,6 +5,7 @@
 build/
 */build/
 *.apk
+!GardaKiosk.apk
 *.aab
 *.ap_
 *.dex

@@ -42,6 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.kioskdeviceowner.KioskSettingsManager
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.core.content.FileProvider
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.File
+import java.io.FileOutputStream
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -70,6 +77,21 @@ fun LauncherScreen(
     var clockTapCount by remember { mutableStateOf(0) }
     var lastClockTapTime by remember { mutableStateOf(0L) }
     var selectedAppForOptions by remember { mutableStateOf<AppItem?>(null) }
+    var capturedPhotoFile by remember { mutableStateOf<File?>(null) }
+    var capturedPhotoBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var showWallpaperTargetDialog by remember { mutableStateOf(false) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success && capturedPhotoFile != null && capturedPhotoFile!!.exists()) {
+            val bmp = loadOrientedBitmap(capturedPhotoFile!!.absolutePath)
+            if (bmp != null) {
+                capturedPhotoBitmap = bmp
+                showWallpaperTargetDialog = true
+            }
+        }
+    }
 
     val shakeOffset by animateFloatAsState(
         targetValue = if (shakeTrigger > 0) (if (shakeTrigger % 2 == 0) 10f else -10f) else 0f,
@@ -122,17 +144,9 @@ fun LauncherScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF0F0C20),
-                        Color(0xFF0B0916)
-                    )
-                )
-            )
+    KioskBackground(
+        settingsManager = settingsManager,
+        screenType = KioskScreenType.DASHBOARD
     ) {
         Column(
             modifier = Modifier
@@ -190,7 +204,11 @@ fun LauncherScreen(
                     IconButton(
                         onClick = {
                             try {
-                                val intent = Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
+                                val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                    Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
+                                } else {
+                                    Intent(Settings.ACTION_WIFI_SETTINGS)
+                                }
                                 context.startActivity(intent)
                             } catch (e: Exception) {
                                 e.printStackTrace()
@@ -224,6 +242,36 @@ fun LauncherScreen(
                         Icon(
                             imageVector = Icons.Default.Bluetooth,
                             contentDescription = "Bluetooth Config",
+                            tint = Color.White
+                        )
+                    }
+
+                    // Camera Photo Wallpaper Button
+                    IconButton(
+                        onClick = {
+                            try {
+                                val targetDir = context.getExternalFilesDir(null)
+                                if (targetDir != null) {
+                                    val file = File(targetDir, "kiosk_temp_capture.jpg")
+                                    capturedPhotoFile = file
+                                    val photoUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        file
+                                    )
+                                    cameraLauncher.launch(photoUri)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = "Ambil Foto Wallpaper",
                             tint = Color.White
                         )
                     }
@@ -536,5 +584,114 @@ fun LauncherScreen(
             containerColor = Color(0xFF151228),
             shape = RoundedCornerShape(16.dp)
         )
+    }
+
+    if (showWallpaperTargetDialog && capturedPhotoBitmap != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showWallpaperTargetDialog = false
+                capturedPhotoBitmap = null
+            },
+            title = {
+                Text(
+                    text = "Terapkan Foto Wallpaper",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Pilih di mana Anda ingin menerapkan foto hasil jepretan kamera ini:",
+                        fontSize = 13.sp,
+                        color = Color.LightGray
+                    )
+
+                    Button(
+                        onClick = {
+                            saveCapturedPhoto(context, scope, settingsManager, capturedPhotoFile, capturedPhotoBitmap, KioskSettingsManager.WALLPAPER_TARGET_BOTH)
+                            showWallpaperTargetDialog = false
+                            capturedPhotoBitmap = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                    ) {
+                        Text("Semua (Dashboard & Lockscreen)", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = {
+                            saveCapturedPhoto(context, scope, settingsManager, capturedPhotoFile, capturedPhotoBitmap, KioskSettingsManager.WALLPAPER_TARGET_DASHBOARD)
+                            showWallpaperTargetDialog = false
+                            capturedPhotoBitmap = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                    ) {
+                        Text("Dashboard Saja", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = {
+                            saveCapturedPhoto(context, scope, settingsManager, capturedPhotoFile, capturedPhotoBitmap, KioskSettingsManager.WALLPAPER_TARGET_LOCKSCREEN)
+                            showWallpaperTargetDialog = false
+                            capturedPhotoBitmap = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                    ) {
+                        Text("Lockscreen Saja", color = Color.White)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showWallpaperTargetDialog = false
+                        capturedPhotoBitmap = null
+                    }
+                ) {
+                    Text("Batal", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF151228),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+private fun saveCapturedPhoto(
+    context: Context,
+    scope: kotlinx.coroutines.CoroutineScope,
+    settingsManager: KioskSettingsManager,
+    sourceFile: File?,
+    bitmapFallback: Bitmap?,
+    target: String
+) {
+    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val targetDir = context.getExternalFilesDir(null)
+            val targetFile = File(targetDir, "kiosk_wallpaper.jpg")
+            if (targetDir != null) {
+                if (sourceFile != null && sourceFile.exists()) {
+                    sourceFile.copyTo(targetFile, overwrite = true)
+                } else if (bitmapFallback != null) {
+                    val fos = FileOutputStream(targetFile)
+                    bitmapFallback.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+                    fos.flush()
+                    fos.close()
+                }
+
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    settingsManager.wallpaperImagePath = targetFile.absolutePath
+                    settingsManager.wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+                    settingsManager.wallpaperTarget = target
+                    settingsManager.notifyWallpaperChanged()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

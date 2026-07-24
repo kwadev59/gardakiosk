@@ -125,10 +125,9 @@ fun LockscreenScreen(
         }
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
+    KioskBackground(
+        settingsManager = settingsManager,
+        screenType = KioskScreenType.LOCKSCREEN
     ) {
         // Floating decorative blurred circles
         Box(

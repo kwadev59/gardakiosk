@@ -40,8 +40,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.kioskdeviceowner.KioskSettingsManager
+import androidx.core.content.FileProvider
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -237,6 +249,12 @@ fun SettingsScreen(
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
+                    text = { Text("Wallpaper", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.Palette, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
                     text = { Text("About", fontWeight = FontWeight.Bold) },
                     icon = { Icon(Icons.Default.Info, contentDescription = null) }
                 )
@@ -772,7 +790,10 @@ fun SettingsScreen(
                         }
                     }
                     2 -> {
-                        // TAB 2: About (Tentang Kita)
+                        WallpaperTabContent(settingsManager = settingsManager)
+                    }
+                    3 -> {
+                        // TAB 3: About (Tentang Kita)
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -891,6 +912,513 @@ fun SettingsScreen(
 }
 
 @Composable
+fun WallpaperTabContent(settingsManager: KioskSettingsManager) {
+    val context = LocalContext.current
+    var wallpaperType by remember { mutableStateOf(settingsManager.wallpaperType) }
+    var wallpaperPreset by remember { mutableStateOf(settingsManager.wallpaperPreset) }
+    var wallpaperImagePath by remember { mutableStateOf(settingsManager.wallpaperImagePath) }
+    var wallpaperTarget by remember { mutableStateOf(settingsManager.wallpaperTarget) }
+    var wallpaperDim by remember { mutableFloatStateOf(settingsManager.wallpaperDim) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val targetDir = context.getExternalFilesDir(null)
+                val targetFile = File(targetDir, "kiosk_wallpaper.jpg")
+                if (inputStream != null && targetDir != null) {
+                    val outputStream = FileOutputStream(targetFile)
+                    inputStream.copyTo(outputStream)
+                    inputStream.close()
+                    outputStream.close()
+
+                    wallpaperImagePath = targetFile.absolutePath
+                    settingsManager.wallpaperImagePath = targetFile.absolutePath
+                    wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+                    settingsManager.wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    var capturedPhotoFile by remember { mutableStateOf<File?>(null) }
+    var capturedPhotoBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var showWallpaperTargetDialog by remember { mutableStateOf(false) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success && capturedPhotoFile != null && capturedPhotoFile!!.exists()) {
+            val bmp = loadOrientedBitmap(capturedPhotoFile!!.absolutePath)
+            if (bmp != null) {
+                capturedPhotoBitmap = bmp
+                showWallpaperTargetDialog = true
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Live Preview Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF151228)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Pratinjau Wallpaper",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8B5CF6)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    // Preview Background
+                    if (wallpaperType == KioskSettingsManager.WALLPAPER_TYPE_CUSTOM && wallpaperImagePath.isNotEmpty() && File(wallpaperImagePath).exists()) {
+                        val bmp = remember(wallpaperImagePath) {
+                            try { loadOrientedBitmap(wallpaperImagePath)?.asImageBitmap() } catch (e: Exception) { null }
+                        }
+                        if (bmp != null) {
+                            Image(
+                                bitmap = bmp,
+                                contentDescription = "Preview",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
+                        }
+                    } else {
+                        val colors = WallpaperPresets.getColors(wallpaperPreset)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Brush.verticalGradient(colors))
+                        )
+                    }
+
+                    // Dim overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = wallpaperDim))
+                    )
+
+                    // Dummy UI overlay for realism
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "12:45",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color(0xFF8B5CF6), CircleShape)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color(0xFF10B981), CircleShape)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Target Selection Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF151228)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Terapkan Pada Screen",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8B5CF6)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val targets = listOf(
+                        KioskSettingsManager.WALLPAPER_TARGET_BOTH to "Semua",
+                        KioskSettingsManager.WALLPAPER_TARGET_DASHBOARD to "Dashboard",
+                        KioskSettingsManager.WALLPAPER_TARGET_LOCKSCREEN to "Lockscreen"
+                    )
+
+                    targets.forEach { (targetKey, label) ->
+                        val selected = wallpaperTarget == targetKey
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                wallpaperTarget = targetKey
+                                settingsManager.wallpaperTarget = targetKey
+                            },
+                            label = { Text(label, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF8B5CF6),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFF0F0C20),
+                                labelColor = Color.Gray
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // Mode Selection Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF151228)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Tipe Wallpaper",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8B5CF6)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val modes = listOf(
+                        KioskSettingsManager.WALLPAPER_TYPE_PRESET to "Preset Warna",
+                        KioskSettingsManager.WALLPAPER_TYPE_CUSTOM to "Gambar Galeri"
+                    )
+
+                    modes.forEach { (typeKey, label) ->
+                        val selected = wallpaperType == typeKey
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                wallpaperType = typeKey
+                                settingsManager.wallpaperType = typeKey
+                            },
+                            label = { Text(label, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF8B5CF6),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFF0F0C20),
+                                labelColor = Color.Gray
+                            )
+                        )
+                    }
+                }
+
+                if (wallpaperType == KioskSettingsManager.WALLPAPER_TYPE_PRESET) {
+                    Text(
+                        text = "Pilih Tema Gradien:",
+                        fontSize = 12.sp,
+                        color = Color.LightGray
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        WallpaperPresets.ALL.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                pair.forEach { preset ->
+                                    val isSelected = wallpaperPreset.equals(preset.id, ignoreCase = true)
+                                    Card(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(60.dp)
+                                            .border(
+                                                width = if (isSelected) 2.dp else 0.dp,
+                                                color = if (isSelected) Color(0xFF8B5CF6) else Color.Transparent,
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable {
+                                                wallpaperPreset = preset.id
+                                                settingsManager.wallpaperPreset = preset.id
+                                            },
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Brush.verticalGradient(preset.colors))
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.BottomStart
+                                        ) {
+                                            Text(
+                                                text = preset.name,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Camera photo capture button
+                    Button(
+                        onClick = {
+                            try {
+                                val targetDir = context.getExternalFilesDir(null)
+                                if (targetDir != null) {
+                                    val file = File(targetDir, "kiosk_temp_capture.jpg")
+                                    capturedPhotoFile = file
+                                    val photoUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        file
+                                    )
+                                    cameraLauncher.launch(photoUri)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Memotret Langsung Pakai Kamera")
+                    }
+
+                    // Custom Image upload button
+                    Button(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Pilih Gambar dari Galeri HP")
+                    }
+
+                    if (wallpaperImagePath.isNotEmpty()) {
+                        Text(
+                            text = "Berkas: ${File(wallpaperImagePath).name}",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+        }
+
+        // Wallpaper Dimming Level Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF151228)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Tingkat Kegelapan (Dimming)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8B5CF6)
+                    )
+                    Text(
+                        text = "${(wallpaperDim * 100).toInt()}%",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                Slider(
+                    value = wallpaperDim,
+                    onValueChange = {
+                        wallpaperDim = it
+                        settingsManager.wallpaperDim = it
+                    },
+                    valueRange = 0f..0.8f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFF8B5CF6),
+                        activeTrackColor = Color(0xFF8B5CF6)
+                    )
+                )
+                Text(
+                    text = "Geser untuk menambah lapisan gelap di atas gambar agar teks jam & ikon tetap terbaca jelas.",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
+
+    if (showWallpaperTargetDialog && capturedPhotoBitmap != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showWallpaperTargetDialog = false
+                capturedPhotoBitmap = null
+            },
+            title = {
+                Text(
+                    text = "Terapkan Foto Wallpaper",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Pilih di mana Anda ingin menerapkan foto hasil jepretan kamera ini:",
+                        fontSize = 13.sp,
+                        color = Color.LightGray
+                    )
+
+                    Button(
+                        onClick = {
+                            val targetFile = saveWallpaperPhoto(context, settingsManager, capturedPhotoFile, capturedPhotoBitmap, KioskSettingsManager.WALLPAPER_TARGET_BOTH)
+                            if (targetFile != null) {
+                                wallpaperImagePath = targetFile.absolutePath
+                                wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+                                wallpaperTarget = KioskSettingsManager.WALLPAPER_TARGET_BOTH
+                            }
+                            showWallpaperTargetDialog = false
+                            capturedPhotoBitmap = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                    ) {
+                        Text("Semua (Dashboard & Lockscreen)", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = {
+                            val targetFile = saveWallpaperPhoto(context, settingsManager, capturedPhotoFile, capturedPhotoBitmap, KioskSettingsManager.WALLPAPER_TARGET_DASHBOARD)
+                            if (targetFile != null) {
+                                wallpaperImagePath = targetFile.absolutePath
+                                wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+                                wallpaperTarget = KioskSettingsManager.WALLPAPER_TARGET_DASHBOARD
+                            }
+                            showWallpaperTargetDialog = false
+                            capturedPhotoBitmap = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                    ) {
+                        Text("Dashboard Saja", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = {
+                            val targetFile = saveWallpaperPhoto(context, settingsManager, capturedPhotoFile, capturedPhotoBitmap, KioskSettingsManager.WALLPAPER_TARGET_LOCKSCREEN)
+                            if (targetFile != null) {
+                                wallpaperImagePath = targetFile.absolutePath
+                                wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+                                wallpaperTarget = KioskSettingsManager.WALLPAPER_TARGET_LOCKSCREEN
+                            }
+                            showWallpaperTargetDialog = false
+                            capturedPhotoBitmap = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                    ) {
+                        Text("Lockscreen Saja", color = Color.White)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showWallpaperTargetDialog = false
+                        capturedPhotoBitmap = null
+                    }
+                ) {
+                    Text("Batal", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF151228),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+private fun saveWallpaperPhoto(
+    context: Context,
+    settingsManager: KioskSettingsManager,
+    sourceFile: File?,
+    bitmapFallback: Bitmap?,
+    target: String
+): File? {
+    return try {
+        val targetDir = context.getExternalFilesDir(null) ?: return null
+        val targetFile = File(targetDir, "kiosk_wallpaper.jpg")
+        if (sourceFile != null && sourceFile.exists()) {
+            sourceFile.copyTo(targetFile, overwrite = true)
+        } else if (bitmapFallback != null) {
+            val fos = FileOutputStream(targetFile)
+            bitmapFallback.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+            fos.flush()
+            fos.close()
+        }
+
+        settingsManager.wallpaperImagePath = targetFile.absolutePath
+        settingsManager.wallpaperType = KioskSettingsManager.WALLPAPER_TYPE_CUSTOM
+        settingsManager.wallpaperTarget = target
+        targetFile
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
+@Composable
 fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -900,3 +1428,4 @@ fun InfoRow(label: String, value: String) {
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
     }
 }
+

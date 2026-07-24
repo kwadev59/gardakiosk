@@ -35,5 +35,10 @@
   "idle_timeout": 30,
   "is_kiosk_active": true,
   "footer_text": "PROPERTI PERUSAHAAN - GPS TRACKING AKTIF",
-  "usb_debugging_blocked": true
+  "usb_debugging_blocked": true,
+  "wallpaper_type": "PRESET",
+  "wallpaper_preset": "COSMIC",
+  "wallpaper_image_path": "",
+  "wallpaper_target": "BOTH",
+  "wallpaper_dim": 0.3
 }

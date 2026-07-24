@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.example.kioskdeviceowner.receiver.KioskDeviceAdminReceiver
 import com.example.kioskdeviceowner.ui.kiosk.LauncherScreen
 import com.example.kioskdeviceowner.ui.kiosk.LockscreenScreen
@@ -99,6 +101,11 @@ class MainActivity : ComponentActivity() {
         adminComponent = KioskDeviceAdminReceiver.getComponentName(this)
 
         isDeviceOwnerState.value = dpm.isDeviceOwnerApp(packageName)
+
+        // Trigger Silent OTA Auto-Update check (Offline friendly & max 1x per 12 hours)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            OtaUpdateManager(this@MainActivity).checkAndPerformAutoUpdate()
+        }
 
         // Listen for remote setting updates
         val sharedPrefs = getSharedPreferences("kiosk_settings", Context.MODE_PRIVATE)

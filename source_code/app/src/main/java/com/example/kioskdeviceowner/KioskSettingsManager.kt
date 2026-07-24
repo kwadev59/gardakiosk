@@ -3,6 +3,10 @@ package com.example.kioskdeviceowner
 import android.content.Context
 import android.content.SharedPreferences
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
+
 class KioskSettingsManager(private val context: Context) {
 
     private val deContext: Context = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -11,6 +15,13 @@ class KioskSettingsManager(private val context: Context) {
         context
     }
     private val prefs: SharedPreferences = deContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    var wallpaperUpdateTrigger by mutableLongStateOf(System.currentTimeMillis())
+        private set
+
+    fun notifyWallpaperChanged() {
+        wallpaperUpdateTrigger = System.currentTimeMillis()
+    }
 
 
     companion object {
@@ -25,9 +36,21 @@ class KioskSettingsManager(private val context: Context) {
         private const val KEY_FOOTER_TEXT = "kiosk_footer_text"
         private const val KEY_USB_DEBUGGING_BLOCKED = "usb_debugging_blocked"
         private const val KEY_HIDDEN_ICONS = "kiosk_hidden_icons"
+        private const val KEY_WALLPAPER_TYPE = "wallpaper_type"
+        private const val KEY_WALLPAPER_PRESET = "wallpaper_preset"
+        private const val KEY_WALLPAPER_IMAGE_PATH = "wallpaper_image_path"
+        private const val KEY_WALLPAPER_TARGET = "wallpaper_target"
+        private const val KEY_WALLPAPER_DIM = "wallpaper_dim"
         
         const val LOCK_MODE_PIN = "PIN"
         const val LOCK_MODE_SWIPE = "SWIPE"
+
+        const val WALLPAPER_TYPE_PRESET = "PRESET"
+        const val WALLPAPER_TYPE_CUSTOM = "CUSTOM"
+
+        const val WALLPAPER_TARGET_BOTH = "BOTH"
+        const val WALLPAPER_TARGET_DASHBOARD = "DASHBOARD"
+        const val WALLPAPER_TARGET_LOCKSCREEN = "LOCKSCREEN"
     }
 
     var footerText: String
@@ -72,6 +95,41 @@ class KioskSettingsManager(private val context: Context) {
         get() = prefs.getStringSet(KEY_HIDDEN_ICONS, emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_HIDDEN_ICONS, value).apply()
 
+    var wallpaperType: String
+        get() = prefs.getString(KEY_WALLPAPER_TYPE, WALLPAPER_TYPE_PRESET) ?: WALLPAPER_TYPE_PRESET
+        set(value) {
+            prefs.edit().putString(KEY_WALLPAPER_TYPE, value).apply()
+            notifyWallpaperChanged()
+        }
+
+    var wallpaperPreset: String
+        get() = prefs.getString(KEY_WALLPAPER_PRESET, "COSMIC") ?: "COSMIC"
+        set(value) {
+            prefs.edit().putString(KEY_WALLPAPER_PRESET, value).apply()
+            notifyWallpaperChanged()
+        }
+
+    var wallpaperImagePath: String
+        get() = prefs.getString(KEY_WALLPAPER_IMAGE_PATH, "") ?: ""
+        set(value) {
+            prefs.edit().putString(KEY_WALLPAPER_IMAGE_PATH, value).apply()
+            notifyWallpaperChanged()
+        }
+
+    var wallpaperTarget: String
+        get() = prefs.getString(KEY_WALLPAPER_TARGET, WALLPAPER_TARGET_BOTH) ?: WALLPAPER_TARGET_BOTH
+        set(value) {
+            prefs.edit().putString(KEY_WALLPAPER_TARGET, value).apply()
+            notifyWallpaperChanged()
+        }
+
+    var wallpaperDim: Float
+        get() = prefs.getFloat(KEY_WALLPAPER_DIM, 0.3f)
+        set(value) {
+            prefs.edit().putFloat(KEY_WALLPAPER_DIM, value).apply()
+            notifyWallpaperChanged()
+        }
+
     fun exportSettings(context: Context): String? {
         return try {
             val json = org.json.JSONObject().apply {
@@ -83,6 +141,11 @@ class KioskSettingsManager(private val context: Context) {
                 put("is_kiosk_active", isKioskActive)
                 put("footer_text", footerText)
                 put("usb_debugging_blocked", isUsbDebuggingBlocked)
+                put("wallpaper_type", wallpaperType)
+                put("wallpaper_preset", wallpaperPreset)
+                put("wallpaper_image_path", wallpaperImagePath)
+                put("wallpaper_target", wallpaperTarget)
+                put("wallpaper_dim", wallpaperDim.toDouble())
             }
             val dir = context.getExternalFilesDir(null) ?: return null
             val file = java.io.File(dir, "kiosk_settings.json")
@@ -148,6 +211,11 @@ class KioskSettingsManager(private val context: Context) {
             if (json.has("is_kiosk_active")) isKioskActive = json.getBoolean("is_kiosk_active")
             if (json.has("footer_text")) footerText = json.getString("footer_text")
             if (json.has("usb_debugging_blocked")) isUsbDebuggingBlocked = json.getBoolean("usb_debugging_blocked")
+            if (json.has("wallpaper_type")) wallpaperType = json.getString("wallpaper_type")
+            if (json.has("wallpaper_preset")) wallpaperPreset = json.getString("wallpaper_preset")
+            if (json.has("wallpaper_image_path")) wallpaperImagePath = json.getString("wallpaper_image_path")
+            if (json.has("wallpaper_target")) wallpaperTarget = json.getString("wallpaper_target")
+            if (json.has("wallpaper_dim")) wallpaperDim = json.getDouble("wallpaper_dim").toFloat()
             
             true
         } catch (e: Exception) {
