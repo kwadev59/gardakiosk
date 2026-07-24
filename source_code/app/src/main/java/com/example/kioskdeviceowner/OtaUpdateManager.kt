@@ -62,10 +62,7 @@ class OtaUpdateManager(private val context: Context) {
                     return@withContext
                 }
 
-                // Update timestamp pengecekan terakhir
-                prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
-
-                // 3. Fetch version.json
+                // 3. Fetch version.json (File kecil 100 bytes)
                 val jsonStr = fetchUrlText(VERSION_JSON_URL) ?: return@withContext
                 val json = JSONObject(jsonStr)
 
@@ -82,7 +79,7 @@ class OtaUpdateManager(private val context: Context) {
                     1
                 }
 
-                // 4. Jika ada versi lebih baru di server
+                // 4. Jika ada versi lebih baru di server -> DOWNLOAD & INSTALL SEKETIKA
                 if (serverVersionCode > currentVersionCode && apkUrl.isNotEmpty()) {
                     val apkFile = File(context.cacheDir, "OtaUpdate.apk")
                     val downloaded = downloadFile(apkUrl, apkFile)
@@ -90,6 +87,9 @@ class OtaUpdateManager(private val context: Context) {
                     if (downloaded && apkFile.exists()) {
                         performSilentInstall(apkFile)
                     }
+                } else {
+                    // Jika tidak ada update, simpan timestamp agar tidak spam cek selama 12 jam
+                    prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
