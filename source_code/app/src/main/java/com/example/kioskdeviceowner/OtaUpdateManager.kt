@@ -23,7 +23,6 @@ class OtaUpdateManager(private val context: Context) {
         private const val KEY_LAST_CHECK = "last_ota_check_timestamp"
         private const val CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000L // 12 Jam Once
 
-        // GitHub Raw URL for version check
         private const val VERSION_JSON_URL = "https://raw.githubusercontent.com/kwadev59/gardakiosk/main/version.json"
         
         const val ACTION_INSTALL_COMPLETE = "com.example.kioskdeviceowner.ACTION_INSTALL_COMPLETE"
@@ -62,7 +61,7 @@ class OtaUpdateManager(private val context: Context) {
                     return@withContext
                 }
 
-                // 3. Fetch version.json (File kecil 100 bytes)
+                // 3. Fetch version.json dari GitHub Server
                 val jsonStr = fetchUrlText(VERSION_JSON_URL) ?: return@withContext
                 val json = JSONObject(jsonStr)
 
